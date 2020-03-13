@@ -9,15 +9,33 @@ from .serializers import (
     LoginSerializer, RegistrationSerializer, UserSerializer
 )
 
+from django.conf import settings
+
+
+import requests
+
 
 class GithubCallback(APIView):
     permission_classes = (AllowAny,)
+    renderer_classes = (UserJSONRenderer,)
 
     def get(self, request):
-        print('get', request.query_params)
+        r = self.get_token(request.query_params.get('code'))
+        token = r.json()['access_token']
+        r = self.get_user_info(token)
+        print(r.content)
+        return Response({})
 
-    def get_user_info(self):
-        pass
+    def get_token(self, code):
+        params = {'client_id': settings.GITHUB_CLIENT_ID, 'client_secret': settings.GITHUB_CLIENT_SECRET, 'code': code}
+        headers = {'Accept': 'application/json'}
+        r = requests.post(f'https://github.com/login/oauth/access_token', params=params, headers=headers)
+        return r
+
+    def get_user_info(self, token):
+        headers = {'Authorization': f'token {token}'}
+        r = requests.get('https://api.github.com/user', headers=headers)
+        return r
 
 
 class RegistrationAPIView(APIView):
