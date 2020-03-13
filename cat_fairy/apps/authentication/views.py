@@ -10,6 +10,16 @@ from .serializers import (
 )
 
 
+class GithubCallback(APIView):
+    permission_classes = (AllowAny,)
+
+    def get(self, request):
+        print('get', request.query_params)
+
+    def get_user_info(self):
+        pass
+
+
 class RegistrationAPIView(APIView):
     permission_classes = (AllowAny,)
     renderer_classes = (UserJSONRenderer,)
