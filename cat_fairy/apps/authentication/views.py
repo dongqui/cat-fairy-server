@@ -1,68 +1,76 @@
 from rest_framework import status
+from rest_framework.decorators import api_view, renderer_classes
 from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.reverse import reverse
+
+from .models import User
 
 from .renderers import UserJSONRenderer
 from .serializers import (
-    LoginSerializer, RegistrationSerializer, UserSerializer
+    LoginSerializer, UserSerializer
 )
 
 from django.conf import settings
+from django.shortcuts import redirect
 
 
-import requests
+import requests, json
 
 
-class GithubCallback(APIView):
+class GithubCallbackAPIView(APIView):
     permission_classes = (AllowAny,)
     renderer_classes = (UserJSONRenderer,)
+    serializer_class = UserSerializer
 
     def get(self, request):
-        r = self.get_token(request.query_params.get('code'))
-        token = r.json()['access_token']
-        r = self.get_user_info(token)
-        print(r.content)
-        return Response({})
+        user_info = self._github_auth_process(request).json()
+        user = User.objects.get(github_id=user_info['id'])
 
-    def get_token(self, code):
-        params = {'client_id': settings.GITHUB_CLIENT_ID, 'client_secret': settings.GITHUB_CLIENT_SECRET, 'code': code}
+        if user:
+            return Response(_login(user), status=status.HTTP_200_OK)
+
+        else:
+            user = {'username': user_info['login'], 'email': user_info['email'], 'github_id': user_info['id']}
+            return Response(_registration(user), status=status.HTTP_201_CREATED)
+
+    def _github_auth_process(self, request):
+        code = request.query_params.get('code')
+        token = self._get_token(code).json()['access_token']
+        user_info = self._get_user_info(token)
+
+        return user_info
+
+    def _get_token(self, code):
+        params = {'client_id': settings.GITHUB_CLIENT_ID, 'client_secret': settings.GITHUB_CLIENT_SECRET,
+                  'code': code}
         headers = {'Accept': 'application/json'}
         r = requests.post(f'https://github.com/login/oauth/access_token', params=params, headers=headers)
+
         return r
 
-    def get_user_info(self, token):
+    def _get_user_info(self, token):
         headers = {'Authorization': f'token {token}'}
         r = requests.get('https://api.github.com/user', headers=headers)
+
         return r
 
 
-class RegistrationAPIView(APIView):
-    permission_classes = (AllowAny,)
-    renderer_classes = (UserJSONRenderer,)
-    serializer_class = RegistrationSerializer
+@api_view(['POST'])
+@renderer_classes(UserJSONRenderer)
+def registration_api_view(request):
+    user = request.data.get('user', {})
 
-    def post(self, request):
-        user = request.data.get('user', {})
-        serializer = self.serializer_class(data=user)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(_registration(user), status=status.HTTP_201_CREATED)
 
 
-class LoginAPIView(APIView):
-    permission_classes = (AllowAny,)
-    renderer_classes = (UserJSONRenderer,)
-    serializer_class = LoginSerializer
-
-    def post(self, request):
-        user = request.data.get('user', {})
-        serializer = self.serializer_class(data=user)
-        serializer.is_valid(raise_exception=True)
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
+@api_view(['POST'])
+@renderer_classes(UserJSONRenderer)
+def login_api_view(request):
+    user = request.data.get('user', {})
+    return Response(_login(user),  status=status.HTTP_200_OK)
 
 
 class UserRetrieveUpdateAPIView(RetrieveUpdateAPIView):
@@ -81,11 +89,6 @@ class UserRetrieveUpdateAPIView(RetrieveUpdateAPIView):
         serializer_data = {
             'username': user_data.get('username', request.user.username),
             'email': user_data.get('email', request.user.email),
-
-            'profile': {
-                'bio': user_data.get('bio', request.user.profile.bio),
-                'image': user_data.get('image', request.user.profile.image)
-            }
         }
 
         serializer = self.serializer_class(
@@ -96,3 +99,18 @@ class UserRetrieveUpdateAPIView(RetrieveUpdateAPIView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+def _registration(user):
+    serializer = UserSerializer(data=user)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+
+    return serializer.data
+
+
+def _login(token):
+    serializer = UserSerializer(data={token: token})
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+
+    return serializer.data
