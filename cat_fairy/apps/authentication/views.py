@@ -4,20 +4,17 @@ from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.reverse import reverse
 
 from .models import User
 
 from .renderers import UserJSONRenderer
 from .serializers import (
-    LoginSerializer, UserSerializer
+    UserSerializer
 )
 
 from django.conf import settings
-from django.shortcuts import redirect
 
-
-import requests, json
+import requests
 
 
 class GithubCallbackAPIView(APIView):
