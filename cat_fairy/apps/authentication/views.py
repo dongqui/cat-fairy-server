@@ -9,10 +9,12 @@ from .models import User
 
 from .renderers import UserJSONRenderer
 from .serializers import (
-    UserSerializer
+    UserSerializer, LoginSerializer
 )
 
 from django.conf import settings
+
+from django.shortcuts import redirect
 
 import requests
 
@@ -25,13 +27,16 @@ class GithubCallbackAPIView(APIView):
     def get(self, request):
         user_info = self._github_auth_process(request).json()
         user = User.objects.get(github_id=user_info['id'])
-
         if user:
-            return Response(_login(user), status=status.HTTP_200_OK)
+            return redirect(f'http://localhost:3000/token={user.token}')
 
         else:
             user = {'username': user_info['login'], 'email': user_info['email'], 'github_id': user_info['id']}
-            return Response(_registration(user), status=status.HTTP_201_CREATED)
+            serializer = UserSerializer(data=user)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def _github_auth_process(self, request):
         code = request.query_params.get('code')
@@ -96,18 +101,3 @@ class UserRetrieveUpdateAPIView(RetrieveUpdateAPIView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
-def _registration(user):
-    serializer = UserSerializer(data=user)
-    serializer.is_valid(raise_exception=True)
-    serializer.save()
-
-    return serializer.data
-
-
-def _login(token):
-    serializer = UserSerializer(data={token: token})
-    serializer.is_valid(raise_exception=True)
-    serializer.save()
-
-    return serializer.data

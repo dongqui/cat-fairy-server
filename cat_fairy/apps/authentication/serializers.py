@@ -13,9 +13,9 @@ class LoginSerializer(serializers.Serializer):
     token = serializers.CharField(max_length=255, read_only=True)
 
     def validate(self, data):
-        token = data.get('token', None)
+        print(data.keys())
         try:
-            decoded = jwt.decode(token, settings.SECRET_KEY, 'HS256')
+            decoded = jwt.decode(data, settings.SECRET_KEY, 'HS256')
             user = authenticate(username=decoded.username)
             if user is None:
                 raise serializers.ValidationError(
