@@ -28,7 +28,7 @@ class GithubCallbackAPIView(APIView):
         user_info = self._github_auth_process(request).json()
         user = User.objects.get(github_id=user_info['id'])
         if user:
-            return redirect(f'http://localhost:3000/token={user.token}')
+            return redirect(f'http://localhost:3000/token/{user.token}')
 
         else:
             user = {'username': user_info['login'], 'email': user_info['email'], 'github_id': user_info['id']}
@@ -40,23 +40,23 @@ class GithubCallbackAPIView(APIView):
 
     def _github_auth_process(self, request):
         code = request.query_params.get('code')
-        token = self._get_token(code).json()['access_token']
+        token = self._get_token(code)
+        print(token)
         user_info = self._get_user_info(token)
-
         return user_info
 
     def _get_token(self, code):
         params = {'client_id': settings.GITHUB_CLIENT_ID, 'client_secret': settings.GITHUB_CLIENT_SECRET,
                   'code': code}
         headers = {'Accept': 'application/json'}
-        r = requests.post(f'https://github.com/login/oauth/access_token', params=params, headers=headers)
+        r = requests.post(f'https://github.com/login/oauth/access_token', params=params, headers=headers).json()
 
         return r
 
     def _get_user_info(self, token):
         headers = {'Authorization': f'token {token}'}
         r = requests.get('https://api.github.com/user', headers=headers)
-
+        print(r.json())
         return r
 
 
@@ -101,3 +101,15 @@ class UserRetrieveUpdateAPIView(RetrieveUpdateAPIView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+
+# <div className="App">
+#       <a
+#           className="App-link"
+#           href="https://github.com/login/oauth/authorize?client_id=5c82987314849c415fa5&scope=user"
+#           target="_blank"
+#           rel="noopener noreferrer"
+#         >
+#           github
+#         </a>
+#     </div>
