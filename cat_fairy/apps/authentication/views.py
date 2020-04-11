@@ -25,10 +25,12 @@ class GithubCallbackAPIView(APIView):
     serializer_class = UserSerializer
 
     def get(self, request):
-        user_info = self._github_auth_process(request).json()
+        user_info = self._github_auth_process(request)
         user = User.objects.get(github_id=user_info['id'])
+
+        # todo - response with user data
         if user:
-            return redirect(f'http://localhost:3000/token/{user.token}')
+            return Response(user)
 
         else:
             user = {'username': user_info['login'], 'email': user_info['email'], 'github_id': user_info['id']}
@@ -41,23 +43,25 @@ class GithubCallbackAPIView(APIView):
     def _github_auth_process(self, request):
         code = request.query_params.get('code')
         token = self._get_token(code)
-        print(token)
         user_info = self._get_user_info(token)
+
         return user_info
 
     def _get_token(self, code):
         params = {'client_id': settings.GITHUB_CLIENT_ID, 'client_secret': settings.GITHUB_CLIENT_SECRET,
                   'code': code}
         headers = {'Accept': 'application/json'}
-        r = requests.post(f'https://github.com/login/oauth/access_token', params=params, headers=headers).json()
+        res = requests.post(f'https://github.com/login/oauth/access_token', params=params, headers=headers)
+        result = res.json()
 
-        return r
+        return result['access_token']
 
     def _get_user_info(self, token):
         headers = {'Authorization': f'token {token}'}
-        r = requests.get('https://api.github.com/user', headers=headers)
-        print(r.json())
-        return r
+        res = requests.get('https://api.github.com/user', headers=headers)
+        result = res.json()
+
+        return result
 
 
 @api_view(['POST'])
