@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib.auth.models import (
     AbstractBaseUser, BaseUserManager, PermissionsMixin
 )
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
 from cat_fairy.apps.core.models import TimestampedModel
@@ -35,6 +36,12 @@ class UserManager(BaseUserManager):
         user.save()
 
         return user
+
+    def get_or_none(self, **kwargs):
+        try:
+            return self.get(**kwargs)
+        except ObjectDoesNotExist:
+            return None
 
 
 class User(AbstractBaseUser, PermissionsMixin, TimestampedModel):

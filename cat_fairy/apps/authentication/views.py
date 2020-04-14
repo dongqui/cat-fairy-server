@@ -24,16 +24,18 @@ class GithubCallbackAPIView(APIView):
     renderer_classes = (UserJSONRenderer,)
     serializer_class = UserSerializer
 
-    def get(self, request):
+    def post(self, request):
         user_info = self._github_auth_process(request)
-        user = User.objects.get(github_id=user_info['id'])
+        user = User.objects.get_or_none(github_id=user_info['id'])
 
-        # todo - response with user data
         if user:
-            return Response(user)
+            serializer = UserSerializer(user)
+
+            return Response(data=serializer.data, status=status.HTTP_201_CREATED)
 
         else:
             user = {'username': user_info['login'], 'email': user_info['email'], 'github_id': user_info['id']}
+            print(user)
             serializer = UserSerializer(data=user)
             serializer.is_valid(raise_exception=True)
             serializer.save()
@@ -41,8 +43,8 @@ class GithubCallbackAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def _github_auth_process(self, request):
-        code = request.query_params.get('code')
-        token = self._get_token(code)
+        data = request.data
+        token = self._get_token(data['code'])
         user_info = self._get_user_info(token)
 
         return user_info
