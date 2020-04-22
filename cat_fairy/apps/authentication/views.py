@@ -1,6 +1,5 @@
 from rest_framework import status
-from rest_framework.decorators import api_view, renderer_classes
-from rest_framework.generics import RetrieveUpdateAPIView
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, renderer_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,10 +10,9 @@ from .renderers import UserJSONRenderer
 from .serializers import (
     UserSerializer, LoginSerializer
 )
+from .backends import JWTAuthentication
 
 from django.conf import settings
-
-from django.shortcuts import redirect
 
 import requests
 
@@ -31,7 +29,7 @@ class GithubCallbackAPIView(APIView):
         if user:
             serializer = UserSerializer(user)
 
-            return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         else:
             user = {'username': user_info['login'], 'email': user_info['email'], 'github_id': user_info['id']}
@@ -67,55 +65,10 @@ class GithubCallbackAPIView(APIView):
 
 
 @api_view(['POST'])
-@renderer_classes(UserJSONRenderer)
-def registration_api_view(request):
-    user = request.data.get('user', {})
-
-    return Response(_registration(user), status=status.HTTP_201_CREATED)
-
-
-@api_view(['POST'])
-@renderer_classes(UserJSONRenderer)
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+@renderer_classes([UserJSONRenderer])
 def login_api_view(request):
-    user = request.data.get('user', {})
-    return Response(_login(user),  status=status.HTTP_200_OK)
+    serializer = UserSerializer(request.user)
+    return Response(serializer.data,  status=status.HTTP_201_CREATED)
 
-
-class UserRetrieveUpdateAPIView(RetrieveUpdateAPIView):
-    permission_classes = (IsAuthenticated,)
-    renderer_classes = (UserJSONRenderer,)
-    serializer_class = UserSerializer
-
-    def retrieve(self, request, *args, **kwargs):
-        serializer = self.serializer_class(request.user)
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def update(self, request, *args, **kwargs):
-        user_data = request.data.get('user', {})
-
-        serializer_data = {
-            'username': user_data.get('username', request.user.username),
-            'email': user_data.get('email', request.user.email),
-        }
-
-        serializer = self.serializer_class(
-            request.user, data=serializer_data, partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-
-# <div className="App">
-#       <a
-#           className="App-link"
-#           href="https://github.com/login/oauth/authorize?client_id=5c82987314849c415fa5&scope=user"
-#           target="_blank"
-#           rel="noopener noreferrer"
-#         >
-#           github
-#         </a>
-#     </div>
