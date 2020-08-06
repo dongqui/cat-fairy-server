@@ -9,10 +9,11 @@ export const helloWorld = functions.https.onRequest((request, response) => {
 
 export const githubInfo = functions.https.onRequest(async (request, response) => {
  if (request.method === 'GET') {
+   const startDate = 2020;
   const { username } = request.query;
-  const data = (await axios.get(`https://github.com/${username}`, { responseType: 'text' })).data;
-  const $ = cheerio.load(data);
-  const years = $(".js-year-link")
+  const githubFirstPage = (await axios.get(`https://github.com/${username}`, { responseType: 'text' })).data;
+  const $ = cheerio.load(githubFirstPage);
+  const targetYears = $(".js-year-link")
     .get()
     .map((a: string) => {
      const $a = $(a);
@@ -20,7 +21,9 @@ export const githubInfo = functions.https.onRequest(async (request, response) =>
       href: $a.attr("href"),
       text: $a.text().trim()
      };
-    });
-  console.log(years);
+    })
+    .filter(a => Number(a.text) <= startDate);
+
+  
  }
 })
