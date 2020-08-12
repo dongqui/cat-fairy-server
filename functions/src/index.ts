@@ -9,30 +9,59 @@ export const helloWorld = functions.https.onRequest((request, response) => {
 
 export const githubInfo = functions.https.onRequest(async (request, response) => {
  if (request.method === 'GET') {
-   const startDate = new Date('2020-05-06');
-   const { username } = request.query;
+   const latestVisitDate = new Date('2020-08-01'); //
+
+   const username = 'dongqui'
    const githubFirstPage = (await axios.get(`https://github.com/${username}`, { responseType: 'text' })).data;
    const $ = cheerio.load(githubFirstPage);
    const targetYears = $(".js-year-link")
      .get()
-     .map((a: string) => {
-       const $a = $(a);
-       return {
-         href: $a.attr("href"),
-         text: $a.text().trim()
-       };
-     })
-     .filter(a => Number(a.text) >= startDate.getFullYear());
+     .filter(a => Number($(a).text().trim()) >= latestVisitDate.getFullYear())
+     .map((a) => $(a).attr("href"));
 
    for (const year of targetYears) {
-     const yearPage = (await axios.get(`https://github.com/${year.href}`, { responseType: 'text' })).data;
+     const yearPage = (await axios.get(`https://github.com/${year}`, {responseType: 'text'})).data;
      const $ = cheerio.load(yearPage);
      const $days = $("rect.day");
-     const dateData = {
-       start: $($days.get(0)).attr("data-date"),
-       end: $($days.get($days.length - 1)).attr("data-date")
+
+     interface IConsecutiveCommitsData {
+       startDate?: Date | null,
+       consecutiveDayCount?: number
+       endDate?: Date | null,
      }
-     console.log(dateData)
+
+     let consecutiveCommitsData: IConsecutiveCommitsData = {
+       startDate: latestVisitDate || null,
+       consecutiveDayCount: 0,
+       endDate: null,
+     }
+     const todayDate = new Date();
+     const consecutiveStartDateIndex = Math.floor(
+       (latestVisitDate.getTime() - new Date(`${todayDate.getFullYear()}-01-01`).getTime())
+       / (1000 * 60 * 60 * 24));
+     const consecutiveEndDateIndex = Math.floor(
+       (todayDate.getTime() - new Date(`${todayDate.getFullYear()}-01-01`).getTime())
+       / (1000 * 60 * 60 * 24));
+
+     const consecutiveCommitsDataList: IConsecutiveCommitsData[] = [];
+     for (let i = consecutiveStartDateIndex; i <= consecutiveEndDateIndex; i++) {
+       const commitDate = new Date($($days.get(i)).attr('data-date') || '');
+       const commitCount = Number($($days.get(i)).attr('data-count'));
+       if (commitCount === 0) {
+         if (Number(consecutiveCommitsData.consecutiveDayCount) > 0) {
+           consecutiveCommitsDataList.push(consecutiveCommitsData);
+         }
+         consecutiveCommitsData = {
+           startDate: null,
+           consecutiveDayCount: 0,
+           endDate: null
+         };
+       } else {
+         consecutiveCommitsData.startDate = consecutiveCommitsData.startDate || commitDate;
+         consecutiveCommitsData.consecutiveDayCount = (consecutiveCommitsData.consecutiveDayCount || 0) + 1;
+         consecutiveCommitsData.endDate = commitDate;
+       }
+     }
    }
-  }
-})
+ }
+});
