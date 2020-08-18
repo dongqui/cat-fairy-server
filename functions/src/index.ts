@@ -23,7 +23,7 @@ export const githubInfo = functions.https.onRequest(async (request, response) =>
    }
 
    const user = (await firestore.collection('users').doc('uid').get()).data();
-   const username = user?.username;
+   const username = user?.username || 'dongqui';
 
    const latestCommitData: IConsecutiveCommitsData = user?.latestCommitData || {
      startDate: new Date(),
@@ -70,12 +70,12 @@ export const githubInfo = functions.https.onRequest(async (request, response) =>
          return firestore.collection(`users/${user?.uid}/consecutiveCommits`).add(consecutiveCommitData);
        }));
 
-       const latestCommits = consecutiveCommitsDataList[consecutiveCommitsDataList.length - 1];
+       const latestCommits = consecutiveCommitsDataList[consecutiveCommitsDataList.length - 1] || latestCommitData;
        await firestore.doc(`users/${user?.uid}`).update({ latestCommitData: latestCommits });
 
        response.send({ consecutiveCommitsDataList });
      } catch(e) {
-
+        console.log(e)
      }
    }
  }
