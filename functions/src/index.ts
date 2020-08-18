@@ -65,8 +65,18 @@ export const githubInfo = functions.https.onRequest(async (request, response) =>
          consecutiveCommitsData.endDate = commitDate;
        }
      }
+     try {
+       await Promise.all(consecutiveCommitsDataList.map(consecutiveCommitData => {
+         return firestore.collection(`users/${user?.uid}/consecutiveCommits`).add(consecutiveCommitData);
+       }));
 
-     response.send({ consecutiveCommitsDataList });
+       const latestCommits = consecutiveCommitsDataList[consecutiveCommitsDataList.length - 1];
+       await firestore.doc(`users/${user?.uid}`).update({ latestCommitData: latestCommits });
+
+       response.send({ consecutiveCommitsDataList });
+     } catch(e) {
+
+     }
    }
  }
 });
