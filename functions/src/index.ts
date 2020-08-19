@@ -40,8 +40,8 @@ export const githubInfo = functions.https.onRequest(async (request, response) =>
 
    for (const year of targetYears) {
      const yearPage = (await axios.get(`https://github.com/${year}`, {responseType: 'text'})).data;
-     const $ = cheerio.load(yearPage);
-     const $days = $("rect.day");
+     const _$ = cheerio.load(yearPage);
+     const $days = _$("rect.day");
 
      let consecutiveCommitsData: IConsecutiveCommitsData = latestCommitData;
 
@@ -55,14 +55,16 @@ export const githubInfo = functions.https.onRequest(async (request, response) =>
 
      const consecutiveCommitsDataList: IConsecutiveCommitsData[] = [];
      for (let i = consecutiveStartDateIndex; i <= consecutiveEndDateIndex; i++) {
-       const commitDate = new Date($($days.get(i)).attr('data-date') || '');
-       const commitCount = Number($($days.get(i)).attr('data-count'));
+       const commitDate = new Date(_$($days.get(i)).attr('data-date') || '');
+       const commitCount = Number(_$($days.get(i)).attr('data-count'));
        if (commitCount === 0 && Number(consecutiveCommitsData.consecutiveDayCount) > 0) {
          consecutiveCommitsDataList.push(consecutiveCommitsData);
        } else {
-         consecutiveCommitsData.startDate = consecutiveCommitsData.startDate || commitDate;
-         consecutiveCommitsData.consecutiveDayCount = (consecutiveCommitsData.consecutiveDayCount || 0) + 1;
-         consecutiveCommitsData.endDate = commitDate;
+         consecutiveCommitsData = {
+           startDate: consecutiveCommitsData.startDate || commitDate,
+           consecutiveDayCount: (consecutiveCommitsData.consecutiveDayCount || 0) + 1,
+           endDate: commitDate,
+         };
        }
      }
      try {
