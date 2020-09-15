@@ -6,13 +6,7 @@ import * as admin from 'firebase-admin';
 // TODO: check what confg is - admin.initializeApp(functions.config().firebase);
 admin.initializeApp();
 
-export const helloWorld = functions.https.onRequest(async (request, response) => {
- const test = await admin.firestore().collection('test').add({ test: 'hello world'});
- const data = (await test.get()).data();
- response.send(data);
-});
-
-export const githubInfo = functions.https.onRequest(async (request, response) => {
+export const getCommitHistory = functions.https.onRequest(async (request, response) => {
  if (request.method === 'GET') {
    const firestore = await admin.firestore();
 
