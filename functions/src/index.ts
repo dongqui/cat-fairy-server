@@ -3,8 +3,11 @@ const functions = firebaseFunctions.region('asia-northeast1');
 import * as cheerio from 'cheerio';
 import axios from 'axios';
 import * as admin from 'firebase-admin';
-// TODO: check what confg is - admin.initializeApp(functions.config().firebase);
-admin.initializeApp();
+// @ts-ignore
+import { config } from '../config';
+admin.initializeApp({
+  credential: admin.credential.cert(config),
+});
 
 export const getCommitHistory = functions.https.onRequest(async (request, response) => {
  if (request.method === 'GET') {
