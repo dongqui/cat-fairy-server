@@ -1,6 +1,6 @@
 .idea
 .env
-
+functions/config.js
 # Logs
 logs
 *.log
