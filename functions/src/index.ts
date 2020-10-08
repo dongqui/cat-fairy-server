@@ -9,20 +9,22 @@ admin.initializeApp({
   credential: admin.credential.cert(config),
 });
 
+interface IConsecutiveCommitsData {
+  startDate: Date,
+  consecutiveDayCount?: number
+  endDate?: Date | null,
+}
+
 export const getCommitHistory = functions.https.onRequest(async (request, response) => {
  if (request.method === 'GET') {
-   const firestore = await admin.firestore();
-
-   interface IConsecutiveCommitsData {
-     startDate: Date,
-     consecutiveDayCount?: number
-     endDate?: Date | null,
+   const { uid, username} = request.query;
+   if (typeof uid !== 'string') {
+     return;
    }
+   const firestore = admin.firestore();
 
-   const user = (await firestore.collection('users').doc('uid').get()).data();
-   const username = user?.username || 'dongqui';
-
-   const latestCommitData: IConsecutiveCommitsData = user?.latestCommitData || {
+   const userData = (await firestore.collection('users').doc(uid).get()).data();
+   const latestCommitData: IConsecutiveCommitsData = userData?.latestCommitData || {
      startDate: new Date(),
      consecutiveDayCount: 0,
      endDate: null
@@ -66,11 +68,11 @@ export const getCommitHistory = functions.https.onRequest(async (request, respon
      }
      try {
        await Promise.all(consecutiveCommitsDataList.map(consecutiveCommitData => {
-         return firestore.collection(`users/${user?.uid}/consecutiveCommits`).add(consecutiveCommitData);
+         return firestore.collection(`users/${uid}/consecutiveCommits`).add(consecutiveCommitData);
        }));
 
        const latestCommits = consecutiveCommitsDataList[consecutiveCommitsDataList.length - 1] || latestCommitData;
-       await firestore.doc(`users/${user?.uid}`).update({ latestCommitData: latestCommits });
+       await firestore.doc(`users/${uid}`).set({ latestCommitData: latestCommits }, {merge: true});
 
        response.send({ consecutiveCommitsDataList });
      } catch(e) {
